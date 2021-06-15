@@ -54,6 +54,7 @@ const (
 	defaultMaxTransactionsPerBlock         = 512
 	// HeaderVerificationGasLimit is the maximum amount of GAS for block header verification.
 	HeaderVerificationGasLimit = 3_00000000 // 3 GAS
+	defaultStateSyncInterval   = 40000
 )
 
 var (
@@ -203,6 +204,11 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		cfg.MaxValidUntilBlockIncrement = uint32(secondsPerDay / cfg.SecondsPerBlock)
 		log.Info("MaxValidUntilBlockIncrement is not set or wrong, using default value",
 			zap.Uint32("MaxValidUntilBlockIncrement", cfg.MaxValidUntilBlockIncrement))
+	}
+	if cfg.P2PStateExchangeExtensions && cfg.StateSyncInterval <= 0 {
+		cfg.StateSyncInterval = defaultStateSyncInterval
+		log.Info("StateSyncInterval is not set or wrong, using default value",
+			zap.Int("StateSyncInterval", cfg.StateSyncInterval))
 	}
 	committee, err := committeeFromConfig(cfg)
 	if err != nil {
