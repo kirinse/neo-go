@@ -920,6 +920,10 @@ func (s *Server) handleGetMPTDataCmd(p Peer, inv *payload.MPTInventory) error {
 	if !s.chain.GetConfig().P2PStateExchangeExtensions {
 		return errors.New("GetMPTDataCMD was received, but P2PStateExchangeExtensions are disabled")
 	}
+	if s.chain.GetConfig().KeepOnlyLatestState {
+		// TODO: implement keeping MPT states for P1 and P2 height
+		return errors.New("GetMPTDataCMD was received, but only latest MPT state is supported")
+	}
 	resp := payload.MPTData{}
 	capLeft := payload.MaxSize - 8 // max(io.GetVarSize(len(resp.Nodes)))
 	for _, h := range inv.Hashes {
