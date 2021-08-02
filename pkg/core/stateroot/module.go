@@ -81,28 +81,43 @@ func (s *Module) CurrentValidatedHeight() uint32 {
 }
 
 // Init initializes state root module at the given height.
-func (s *Module) Init(height uint32, enableRefCount bool) error {
+func (s *Module) Init(height uint32, enableRefCount, removeUntraceable bool) error {
 	data, err := s.Store.Get([]byte{byte(storage.DataMPT), prefixValidated})
 	if err == nil {
 		s.validatedHeight.Store(binary.LittleEndian.Uint32(data))
 	}
 
+	// Removing untraceable blocks needs reference counters.
+	enableRefCount = enableRefCount || removeUntraceable
 	var gcKey = []byte{byte(storage.DataMPT), prefixGC}
 	if height == 0 {
-		s.mpt = mpt.NewTrie(nil, mpt.Config{Store: s.Store})
+		s.mpt = mpt.NewTrie(nil, mpt.Config{
+			Store:             s.Store,
+			RefCountEnabled:   enableRefCount,
+			RemoveUntraceable: removeUntraceable,
+		})
 		var val byte
 		if enableRefCount {
 			val = 1
 		}
+		if removeUntraceable {
+			val |= 2
+		}
 		s.currentLocal.Store(util.Uint256{})
 		return s.Store.Put(gcKey, []byte{val})
 	}
-	var hasRefCount bool
+
+	var hasRefCount, hasRemoveUntraceable bool
 	if v, err := s.Store.Get(gcKey); err == nil {
-		hasRefCount = v[0] != 0
+		hasRefCount = v[0]&1 != 0
+		hasRemoveUntraceable = v[0]&2 != 0
 	}
 	if hasRefCount != enableRefCount {
 		return fmt.Errorf("KeepOnlyLatestState setting mismatch: old=%v, new=%v", hasRefCount, enableRefCount)
+	}
+	if hasRemoveUntraceable != removeUntraceable {
+		return fmt.Errorf("RemoveUntraceableBlocks setting mismatch: old=%v, new=%v",
+			hasRemoveUntraceable, removeUntraceable)
 	}
 	r, err := s.getStateRoot(makeStateRootKey(height))
 	if err != nil {
@@ -111,14 +126,33 @@ func (s *Module) Init(height uint32, enableRefCount bool) error {
 	s.currentLocal.Store(r.Root)
 	s.localHeight.Store(r.Index)
 	s.mpt = mpt.NewTrie(mpt.NewHashNode(r.Root), mpt.Config{
-		RefCountEnabled: enableRefCount,
-		Store:           s.Store,
+		Generation:        r.Index,
+		RefCountEnabled:   enableRefCount,
+		RemoveUntraceable: removeUntraceable,
+		Store:             s.Store,
 	})
 	return nil
 }
 
+// RemoveMPTAtHeight removes all MPT data for height. It should be executed
+// only when reference counting is enabled.
+func (s *Module) RemoveMPTAtHeight(height uint32) error {
+	sr, err := s.GetStateRoot(height)
+	if err != nil {
+		return fmt.Errorf("can't get old state root: %w", err)
+	}
+
+	return mpt.RemoveRoot(sr.Root, mpt.Config{
+		Generation:        height,
+		Store:             s.Store,
+		RefCountEnabled:   true,
+		RemoveUntraceable: true,
+	})
+}
+
 // AddMPTBatch updates using provided batch.
 func (s *Module) AddMPTBatch(index uint32, b mpt.Batch, cache *storage.MemCachedStore) (*mpt.Trie, *state.MPTRoot, error) {
+	s.mpt.Generation = index
 	mpt := *s.mpt
 	mpt.Store = cache
 	if _, err := mpt.PutBatch(b); err != nil {

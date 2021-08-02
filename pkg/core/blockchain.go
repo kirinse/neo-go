@@ -294,7 +294,7 @@ func (bc *Blockchain) init() error {
 		if err != nil {
 			return err
 		}
-		if err := bc.stateRoot.Init(0, bc.config.KeepOnlyLatestState); err != nil {
+		if err := bc.stateRoot.Init(0, bc.config.KeepOnlyLatestState, bc.config.RemoveUntraceableBlocks); err != nil {
 			return fmt.Errorf("can't init MPT: %w", err)
 		}
 		return bc.storeBlock(genesisBlock, nil)
@@ -314,7 +314,7 @@ func (bc *Blockchain) init() error {
 	}
 	bc.blockHeight = bHeight
 	bc.persistedHeight = bHeight
-	if err = bc.stateRoot.Init(bHeight, bc.config.KeepOnlyLatestState); err != nil {
+	if err = bc.stateRoot.Init(bHeight, bc.config.KeepOnlyLatestState, bc.config.RemoveUntraceableBlocks); err != nil {
 		return fmt.Errorf("can't init MPT at height %d: %w", bHeight, err)
 	}
 
@@ -756,6 +756,15 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 						zap.Error(err))
 				}
 				writeBuf.Reset()
+
+				if !bc.config.KeepOnlyLatestState {
+					err := bc.stateRoot.RemoveMPTAtHeight(index)
+					if err != nil {
+						bc.log.Error("can't remove old MPT state data",
+							zap.Uint32("height", index),
+							zap.Error(err))
+					}
+				}
 			}
 		}
 		_, err := kvcache.Persist()
