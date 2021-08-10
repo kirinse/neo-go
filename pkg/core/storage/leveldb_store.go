@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"sync"
+
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/filter"
 	"github.com/syndtr/goleveldb/leveldb/opt"
@@ -15,8 +17,10 @@ type LevelDBOptions struct {
 // LevelDBStore is the official storage implementation for storing and retrieving
 // blockchain data.
 type LevelDBStore struct {
-	db   *leveldb.DB
-	path string
+	db      *leveldb.DB
+	mtx     sync.Mutex
+	batches []*leveldb.Batch
+	path    string
 }
 
 // NewLevelDBStore returns a new LevelDBStore object that will
@@ -58,7 +62,12 @@ func (s *LevelDBStore) Delete(key []byte) error {
 // PutBatch implements the Store interface.
 func (s *LevelDBStore) PutBatch(batch Batch) error {
 	lvldbBatch := batch.(*leveldb.Batch)
-	return s.db.Write(lvldbBatch, nil)
+	err := s.db.Write(lvldbBatch, nil)
+	lvldbBatch.Reset()
+	s.mtx.Lock()
+	s.batches = append(s.batches, lvldbBatch)
+	s.mtx.Unlock()
+	return err
 }
 
 // Seek implements the Store interface.
@@ -73,7 +82,16 @@ func (s *LevelDBStore) Seek(key []byte, f func(k, v []byte)) {
 // Batch implements the Batch interface and returns a leveldb
 // compatible Batch.
 func (s *LevelDBStore) Batch() Batch {
-	return new(leveldb.Batch)
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	ln := len(s.batches)
+	if ln == 0 {
+		return new(leveldb.Batch)
+	}
+
+	b := s.batches[ln-1]
+	s.batches = s.batches[:ln-1]
+	return b
 }
 
 // Close implements the Store interface.
