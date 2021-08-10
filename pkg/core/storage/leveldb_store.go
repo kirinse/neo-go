@@ -29,6 +29,8 @@ func NewLevelDBStore(cfg LevelDBOptions) (*LevelDBStore, error) {
 	var opts = new(opt.Options) // should be exposed via LevelDBOptions if anything needed
 
 	opts.Filter = filter.NewBloomFilter(10)
+	opts.DisableLargeBatchTransaction = true
+	opts.DisableSeeksCompaction = true
 	db, err := leveldb.OpenFile(cfg.DataDirectoryPath, opts)
 	if err != nil {
 		return nil, err
