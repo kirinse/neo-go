@@ -23,7 +23,7 @@ func prepareMPTCompat() *Trie {
 	b.Children[16] = v2
 	b.Children[15] = NewHashNode(e4.Hash())
 
-	tr := NewTrie(r, true, newTestStore())
+	tr := NewTrie(r, Config{Store: newTestStore(), RefCountEnabled: true})
 	tr.putToStore(r)
 	tr.putToStore(b)
 	tr.putToStore(e1)
@@ -125,7 +125,7 @@ func TestCompatibility(t *testing.T) {
 		b.Children[0] = e1
 		b.Children[15] = NewHashNode(e4.Hash())
 
-		tr := NewTrie(NewHashNode(r.Hash()), false, newTestStore())
+		tr := NewTrie(NewHashNode(r.Hash()), Config{Store: newTestStore()})
 		tr.putToStore(r)
 		tr.putToStore(b)
 		tr.putToStore(e1)
@@ -145,7 +145,7 @@ func TestCompatibility(t *testing.T) {
 		tr.testHas(t, []byte{0xac, 0x02}, []byte{0xab, 0xcd})
 		tr.Flush()
 
-		tr2 := NewTrie(NewHashNode(tr.root.Hash()), false, tr.Store)
+		tr2 := NewTrie(NewHashNode(tr.root.Hash()), Config{Store: tr.Store})
 		tr2.testHas(t, []byte{0xac, 0x02}, []byte{0xab, 0xcd})
 	})
 
@@ -182,7 +182,7 @@ func TestCompatibility(t *testing.T) {
 		b.Children[16] = v2
 		b.Children[15] = NewHashNode(e4.Hash())
 
-		tr := NewTrie(NewHashNode(r.Hash()), true, mainTrie.Store)
+		tr := NewTrie(NewHashNode(r.Hash()), Config{Store: mainTrie.Store, RefCountEnabled: true})
 		require.Equal(t, r.Hash(), tr.root.Hash())
 
 		// Tail bytes contain reference counter thus check for prefix.
@@ -332,7 +332,7 @@ func TestCompatibility(t *testing.T) {
 }
 
 func copyTrie(t *Trie) *Trie {
-	return NewTrie(NewHashNode(t.root.Hash()), t.refcountEnabled, t.Store)
+	return NewTrie(NewHashNode(t.root.Hash()), t.Config)
 }
 
 func checkBatchSize(t *testing.T, tr *Trie, n int) {
@@ -352,7 +352,7 @@ func testGetProof(t *testing.T, tr *Trie, key []byte, size int) [][]byte {
 }
 
 func newFilledTrie(t *testing.T, args ...[]byte) *Trie {
-	tr := NewTrie(nil, true, newTestStore())
+	tr := NewTrie(nil, Config{Store: newTestStore(), RefCountEnabled: true})
 	for i := 0; i < len(args); i += 2 {
 		require.NoError(t, tr.Put(args[i], args[i+1]))
 	}

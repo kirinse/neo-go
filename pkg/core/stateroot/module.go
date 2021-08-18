@@ -56,7 +56,7 @@ func NewModule(bc blockchainer.Blockchainer, log *zap.Logger, s *storage.MemCach
 
 // GetStateProof returns proof of having key in the MPT with the specified root.
 func (s *Module) GetStateProof(root util.Uint256, key []byte) ([][]byte, error) {
-	tr := mpt.NewTrie(mpt.NewHashNode(root), false, storage.NewMemCachedStore(s.Store))
+	tr := mpt.NewTrie(mpt.NewHashNode(root), mpt.Config{Store: storage.NewMemCachedStore(s.Store)})
 	return tr.GetProof(key)
 }
 
@@ -89,7 +89,7 @@ func (s *Module) Init(height uint32, enableRefCount bool) error {
 
 	var gcKey = []byte{byte(storage.DataMPT), prefixGC}
 	if height == 0 {
-		s.mpt = mpt.NewTrie(nil, enableRefCount, s.Store)
+		s.mpt = mpt.NewTrie(nil, mpt.Config{Store: s.Store})
 		var val byte
 		if enableRefCount {
 			val = 1
@@ -110,7 +110,10 @@ func (s *Module) Init(height uint32, enableRefCount bool) error {
 	}
 	s.currentLocal.Store(r.Root)
 	s.localHeight.Store(r.Index)
-	s.mpt = mpt.NewTrie(mpt.NewHashNode(r.Root), enableRefCount, s.Store)
+	s.mpt = mpt.NewTrie(mpt.NewHashNode(r.Root), mpt.Config{
+		RefCountEnabled: enableRefCount,
+		Store:           s.Store,
+	})
 	return nil
 }
 

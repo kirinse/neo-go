@@ -49,7 +49,7 @@ func testIncompletePut(t *testing.T, ps pairs, n int, tr1, tr2 *Trie) {
 
 	t.Run("test restore", func(t *testing.T) {
 		tr2.Flush()
-		tr3 := NewTrie(NewHashNode(tr2.StateRoot()), false, storage.NewMemCachedStore(tr2.Store))
+		tr3 := NewTrie(NewHashNode(tr2.StateRoot()), Config{Store: storage.NewMemCachedStore(tr2.Store)})
 		for _, p := range ps[:n] {
 			val, err := tr3.Get(p[0])
 			if p[1] == nil {
@@ -66,10 +66,14 @@ func testPut(t *testing.T, ps pairs, tr1, tr2 *Trie) {
 	testIncompletePut(t, ps, len(ps), tr1, tr2)
 }
 
+func newEmptyTrie() *Trie {
+	return NewTrie(EmptyNode{}, Config{Store: newTestStore()})
+}
+
 func TestTrie_PutBatchLeaf(t *testing.T) {
 	prepareLeaf := func(t *testing.T) (*Trie, *Trie) {
-		tr1 := NewTrie(EmptyNode{}, false, newTestStore())
-		tr2 := NewTrie(EmptyNode{}, false, newTestStore())
+		tr1 := newEmptyTrie()
+		tr2 := newEmptyTrie()
 		require.NoError(t, tr1.Put([]byte{0}, []byte("value")))
 		require.NoError(t, tr2.Put([]byte{0}, []byte("value")))
 		return tr1, tr2
@@ -97,8 +101,8 @@ func TestTrie_PutBatchLeaf(t *testing.T) {
 
 func TestTrie_PutBatchExtension(t *testing.T) {
 	prepareExtension := func(t *testing.T) (*Trie, *Trie) {
-		tr1 := NewTrie(EmptyNode{}, false, newTestStore())
-		tr2 := NewTrie(EmptyNode{}, false, newTestStore())
+		tr1 := newEmptyTrie()
+		tr2 := newEmptyTrie()
 		require.NoError(t, tr1.Put([]byte{1, 2}, []byte("value1")))
 		require.NoError(t, tr2.Put([]byte{1, 2}, []byte("value1")))
 		return tr1, tr2
@@ -144,8 +148,8 @@ func TestTrie_PutBatchExtension(t *testing.T) {
 
 func TestTrie_PutBatchBranch(t *testing.T) {
 	prepareBranch := func(t *testing.T) (*Trie, *Trie) {
-		tr1 := NewTrie(EmptyNode{}, false, newTestStore())
-		tr2 := NewTrie(EmptyNode{}, false, newTestStore())
+		tr1 := newEmptyTrie()
+		tr2 := newEmptyTrie()
 		require.NoError(t, tr1.Put([]byte{0x00, 2}, []byte("value1")))
 		require.NoError(t, tr2.Put([]byte{0x00, 2}, []byte("value1")))
 		require.NoError(t, tr1.Put([]byte{0x10, 3}, []byte("value2")))
@@ -175,8 +179,8 @@ func TestTrie_PutBatchBranch(t *testing.T) {
 			require.IsType(t, (*ExtensionNode)(nil), tr1.root)
 		})
 		t.Run("non-empty child is last node", func(t *testing.T) {
-			tr1 := NewTrie(EmptyNode{}, false, newTestStore())
-			tr2 := NewTrie(EmptyNode{}, false, newTestStore())
+			tr1 := newEmptyTrie()
+			tr2 := newEmptyTrie()
 			require.NoError(t, tr1.Put([]byte{0x00, 2}, []byte("value1")))
 			require.NoError(t, tr2.Put([]byte{0x00, 2}, []byte("value1")))
 			require.NoError(t, tr1.Put([]byte{0x00}, []byte("value2")))
@@ -222,8 +226,8 @@ func TestTrie_PutBatchBranch(t *testing.T) {
 
 func TestTrie_PutBatchHash(t *testing.T) {
 	prepareHash := func(t *testing.T) (*Trie, *Trie) {
-		tr1 := NewTrie(EmptyNode{}, false, newTestStore())
-		tr2 := NewTrie(EmptyNode{}, false, newTestStore())
+		tr1 := newEmptyTrie()
+		tr2 := newEmptyTrie()
 		require.NoError(t, tr1.Put([]byte{0x10}, []byte("value1")))
 		require.NoError(t, tr2.Put([]byte{0x10}, []byte("value1")))
 		require.NoError(t, tr1.Put([]byte{0x20}, []byte("value2")))
@@ -257,8 +261,8 @@ func TestTrie_PutBatchHash(t *testing.T) {
 
 func TestTrie_PutBatchEmpty(t *testing.T) {
 	t.Run("good", func(t *testing.T) {
-		tr1 := NewTrie(EmptyNode{}, false, newTestStore())
-		tr2 := NewTrie(EmptyNode{}, false, newTestStore())
+		tr1 := newEmptyTrie()
+		tr2 := newEmptyTrie()
 		var ps = pairs{
 			{[]byte{0}, []byte("value0")},
 			{[]byte{1}, []byte("value1")},
@@ -273,15 +277,15 @@ func TestTrie_PutBatchEmpty(t *testing.T) {
 			{[]byte{2}, nil},
 			{[]byte{3}, []byte("replace3")},
 		}
-		tr1 := NewTrie(EmptyNode{}, false, newTestStore())
-		tr2 := NewTrie(EmptyNode{}, false, newTestStore())
+		tr1 := newEmptyTrie()
+		tr2 := newEmptyTrie()
 		testIncompletePut(t, ps, 4, tr1, tr2)
 	})
 }
 
 // For the sake of coverage.
 func TestTrie_InvalidNodeType(t *testing.T) {
-	tr := NewTrie(EmptyNode{}, false, newTestStore())
+	tr := newEmptyTrie()
 	var b Batch
 	b.Add([]byte{1}, []byte("value"))
 	tr.root = Node(nil)
@@ -289,8 +293,8 @@ func TestTrie_InvalidNodeType(t *testing.T) {
 }
 
 func TestTrie_PutBatch(t *testing.T) {
-	tr1 := NewTrie(EmptyNode{}, false, newTestStore())
-	tr2 := NewTrie(EmptyNode{}, false, newTestStore())
+	tr1 := newEmptyTrie()
+	tr2 := newEmptyTrie()
 	var ps = pairs{
 		{[]byte{1}, []byte{1}},
 		{[]byte{2}, []byte{3}},
