@@ -1273,7 +1273,7 @@ func (s *Server) initStaleMemPools() {
 func (s *Server) broadcastTxLoop() {
 	const (
 		batchTime = time.Millisecond * 50
-		batchSize = 32
+		batchSize = 64
 	)
 
 	txs := make([]util.Uint256, 0, batchSize)
