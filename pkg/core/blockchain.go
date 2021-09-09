@@ -182,6 +182,9 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		cfg.InitialGASSupply = fixedn.Fixed8(defaultInitialGAS)
 		log.Info("initial gas supply is not set or wrong, setting default value", zap.String("InitialGASSupply", cfg.InitialGASSupply.String()))
 	}
+	if cfg.StateSyncInterval <= 0 {
+		cfg.StateSyncInterval = 10000
+	}
 	if cfg.MemPoolSize <= 0 {
 		cfg.MemPoolSize = defaultMemPoolSize
 		log.Info("mempool size is not set or wrong, setting default value", zap.Int("MemPoolSize", cfg.MemPoolSize))
@@ -734,20 +737,20 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		}
 		if bc.config.RemoveUntraceableBlocks {
 			var start, stop uint32
-			if bc.config.P2PStateExchangeExtensions {
-				// remove batch of old blocks starting from P2-MaxTraceableBlocks-StateSyncInterval up to P2-MaxTraceableBlocks
-				if block.Index >= 2*uint32(bc.config.StateSyncInterval) &&
-					block.Index >= uint32(bc.config.StateSyncInterval)+bc.config.MaxTraceableBlocks && // check this in case if MaxTraceableBlocks>StateSyncInterval
-					int(block.Index)%bc.config.StateSyncInterval == 0 {
-					stop = block.Index - uint32(bc.config.StateSyncInterval) - bc.config.MaxTraceableBlocks
-					if stop > uint32(bc.config.StateSyncInterval) {
-						start = stop - uint32(bc.config.StateSyncInterval)
-					}
+			//			if bc.config.P2PStateExchangeExtensions {
+			// remove batch of old blocks starting from P2-MaxTraceableBlocks-StateSyncInterval up to P2-MaxTraceableBlocks
+			if block.Index >= 2*uint32(bc.config.StateSyncInterval) &&
+				block.Index >= uint32(bc.config.StateSyncInterval)+bc.config.MaxTraceableBlocks && // check this in case if MaxTraceableBlocks>StateSyncInterval
+				int(block.Index)%bc.config.StateSyncInterval == 0 {
+				stop = block.Index - uint32(bc.config.StateSyncInterval) - bc.config.MaxTraceableBlocks
+				if stop > uint32(bc.config.StateSyncInterval) {
+					start = stop - uint32(bc.config.StateSyncInterval)
 				}
-			} else if block.Index > bc.config.MaxTraceableBlocks {
-				start = block.Index - bc.config.MaxTraceableBlocks // is at least 1
-				stop = start + 1
 			}
+			//			} else if block.Index > bc.config.MaxTraceableBlocks {
+			//				start = block.Index - bc.config.MaxTraceableBlocks // is at least 1
+			//				stop = start + 1
+			//			}
 			for index := start; index < stop; index++ {
 				err := kvcache.DeleteBlock(bc.headerHashes[index], writeBuf)
 				if err != nil {
