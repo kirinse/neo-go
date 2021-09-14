@@ -769,6 +769,15 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 					}
 				}
 			}
+			if bc.config.KeepOnlyLatestState && block.Index >= 2*uint32(bc.config.StateSyncInterval) &&
+				int(block.Index)%bc.config.StateSyncInterval == 0 {
+				err := bc.stateRoot.RemoveMPTAtHeight(block.Index - 2*uint32(bc.config.StateSyncInterval))
+				if err != nil {
+					bc.log.Error("can't remove old P-point MPT state data",
+						zap.Uint32("height", block.Index),
+						zap.Error(err))
+				}
+			}
 		}
 		_, err := kvcache.Persist()
 		if err != nil {
@@ -901,6 +910,14 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		// However if this error occurs, this is a bug somewhere in code
 		// because changes applied are the ones from HALTed transactions.
 		return fmt.Errorf("error while trying to apply MPT changes: %w", err)
+	}
+	if bc.config.KeepOnlyLatestState && int(block.Index-1)%bc.config.StateSyncInterval != 0 {
+		err := bc.stateRoot.RemoveMPTAtHeight(block.Index - 1)
+		if err != nil {
+			bc.log.Error("can't remove old non-P MPT state data",
+				zap.Uint32("height", block.Index-1),
+				zap.Error(err))
+		}
 	}
 	if bc.config.StateRootInHeader && bc.HeaderHeight() > sr.Index {
 		h, err := bc.GetHeader(bc.GetHeaderHash(int(sr.Index) + 1))
