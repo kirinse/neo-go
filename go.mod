@@ -28,7 +28,7 @@ require (
 	golang.org/x/term v0.0.0-20210429154555-c04ba851c2a4
 	golang.org/x/text v0.3.6
 	golang.org/x/tools v0.0.0-20201022035929-9cf592e881e9
-	gopkg.in/yaml.v2 v2.4.0
+	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 )
 
 go 1.15
