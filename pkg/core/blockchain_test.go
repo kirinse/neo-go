@@ -6,10 +6,14 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand"
-	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/zaptest"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
@@ -42,9 +46,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/zap/zaptest"
 )
 
 func TestVerifyHeader(t *testing.T) {
@@ -1707,9 +1708,9 @@ func TestMPTDeleteNoKey(t *testing.T) {
 // native contract is disabled. It's easy to forget about config while adding new
 // native contract.
 func TestConfigNativeUpdateHistory(t *testing.T) {
-	const prefixPath = "../../config"
+	var prefixPath = filepath.Join("..", "..", "config")
 	check := func(t *testing.T, cfgFileSuffix interface{}) {
-		cfgPath := path.Join(prefixPath, fmt.Sprintf("protocol.%s.yml", cfgFileSuffix))
+		cfgPath := filepath.Join(prefixPath, fmt.Sprintf("protocol.%s.yml", cfgFileSuffix))
 		cfg, err := config.LoadFile(cfgPath)
 		require.NoError(t, err, fmt.Errorf("failed to load %s", cfgPath))
 		natives := native.NewContracts(cfg.ProtocolConfiguration)

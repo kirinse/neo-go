@@ -3,17 +3,18 @@ package main
 import (
 	"io"
 	"math/big"
-	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
-	"github.com/stretchr/testify/require"
 )
 
 func TestNEP17Balance(t *testing.T) {
@@ -298,7 +299,7 @@ func TestNEP17MultiTransfer(t *testing.T) {
 func TestNEP17ImportToken(t *testing.T) {
 	e := newExecutor(t, true)
 	tmpDir := t.TempDir()
-	walletPath := path.Join(tmpDir, "walletForImport.json")
+	walletPath := filepath.Join(tmpDir, "walletForImport.json")
 
 	neoContractHash, err := e.Chain.GetNativeContractScriptHash(nativenames.Neo)
 	require.NoError(t, err)
