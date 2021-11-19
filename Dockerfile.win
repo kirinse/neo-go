@@ -1,0 +1,32 @@
+# Builder image
+FROM golang:windowsservercore-ltsc2022 as builder
+
+COPY . /neo-go
+
+WORKDIR /neo-go
+
+ARG REPO=repository
+ARG VERSION=dev
+ARG CGO_ENABLED=0
+ARG GOGC=off
+
+RUN go build -trimpath -o ./bin/neo-go.exe ./cli/main.go
+
+# Executable image
+FROM mcr.microsoft.com/windows/servercore:ltsc2022
+
+ARG   VERSION
+LABEL version=$VERSION
+
+WORKDIR /
+
+COPY --from=builder /neo-go/config /config
+COPY --from=builder /neo-go/.docker/privnet-entrypoint.sh /usr/bin/privnet-entrypoint.sh
+COPY --from=builder /neo-go/bin/neo-go.exe /usr/bin/neo-go
+# TODO: export certs from certmgr, see https://stackoverflow.com/questions/26893521/ca-certificate-directory-on-windows
+# or do something else
+# COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+
+ENTRYPOINT ["/usr/bin/privnet-entrypoint.sh"]
+
+CMD ["node", "--config-path", "/config", "--privnet"]
